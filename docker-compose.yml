@@ -1,0 +1,60 @@
+# Docker Compose configuration for Memos MCP Server
+
+version: '3.8'
+
+services:
+  memos-mcp:
+    build: .
+    container_name: memos-mcp-server
+    ports:
+      - "8000:8000"
+    environment:
+      # Server configuration
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8000
+      - LOG_LEVEL=INFO
+      - API_RATE_LIMIT=100
+      
+      # Memos API configuration (set these in .env file)
+      - MEMOS_ACCESS_TOKEN=${MEMOS_ACCESS_TOKEN}
+      - MEMOS_BASE_URL=${MEMOS_BASE_URL}
+      - MEMOS_API_VERSION=${MEMOS_API_VERSION:-v1}
+      - MEMOS_TIMEOUT=${MEMOS_TIMEOUT:-30}
+      - MEMOS_MAX_RETRIES=${MEMOS_MAX_RETRIES:-3}
+      
+      # CORS configuration
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+    
+    env_file:
+      - .env
+    
+    volumes:
+      # Mount source code for development (comment out for production)
+      - ./src:/app/src
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Optional: Add a reverse proxy for production
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: memos-mcp-proxy
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - memos-mcp
+  #   restart: unless-stopped
+
+networks:
+  default:
+    name: memos-mcp-network
