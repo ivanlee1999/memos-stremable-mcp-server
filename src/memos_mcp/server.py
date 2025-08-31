@@ -18,6 +18,7 @@ from .models import (
     SearchQuery,
     ApiConfig,
 )
+from .auth import TokenAuthMiddleware
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -408,8 +409,33 @@ async def get_server_info() -> dict:
 
 # Export the app for running
 def create_app():
-    """Create and return the FastMCP ASGI app."""
-    return app.http_app()
+    """Create and return the FastMCP ASGI app with optional authentication."""
+    import os
+    
+    # Get the base FastMCP HTTP app
+    http_app = app.http_app()
+    
+    # Check if authentication should be enabled
+    auth_enabled = os.getenv("ENABLE_TOKEN_AUTH", "true").lower() in ("true", "1", "yes")
+    
+    if auth_enabled:
+        try:
+            # Get access token for authentication
+            api_config = get_api_config()
+            
+            # Wrap the HTTP app with authentication middleware
+            authenticated_app = TokenAuthMiddleware(
+                http_app,
+                access_token=api_config.access_token,
+                enabled=auth_enabled
+            )
+            
+            logger.info("HTTP authentication middleware enabled")
+            return authenticated_app
+        except Exception as e:
+            logger.warning("Could not enable authentication: %s. Running without authentication.", e)
+    
+    return http_app
 
 # Export for uvicorn
 http_app = create_app()

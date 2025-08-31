@@ -1,5 +1,6 @@
 """Configuration management for Memos MCP server."""
 
+import hashlib
 import os
 from typing import Optional
 from dotenv import load_dotenv
@@ -70,6 +71,9 @@ LOG_LEVEL=INFO
 CORS_ORIGINS=http://localhost:3000,http://localhost:8080
 API_RATE_LIMIT=100
 
+# Optional: Authentication configuration
+ENABLE_TOKEN_AUTH=true
+
 # Instructions for Memos setup:
 # 1. Set your Memos instance URL:
 #    - For self-hosted: http://localhost:5230 (default Docker port)
@@ -84,8 +88,23 @@ API_RATE_LIMIT=100
 #    - Set expiration date
 #    - Copy the generated token
 # 3. Replace "your_access_token_here" with your actual token
-# 4. Adjust other settings as needed
+# 4. Authentication setup (optional):
+#    - Set ENABLE_TOKEN_AUTH=true to enable URL-based authentication
+#    - When enabled, clients must include ?token=<sha256_hash> in the URL
+#    - The sha256_hash is the SHA256 of your MEMOS_ACCESS_TOKEN
+#    - This provides secure access without exposing the actual token
+# 5. Adjust other settings as needed
 """
+
+
+def get_auth_enabled() -> bool:
+    """Check if token authentication is enabled."""
+    return os.getenv("ENABLE_TOKEN_AUTH", "true").lower() in ("true", "1", "yes")
+
+
+def compute_token_hash(token: str) -> str:
+    """Compute SHA256 hash of the access token."""
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def validate_environment() -> None:

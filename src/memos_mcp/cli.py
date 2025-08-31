@@ -14,6 +14,7 @@ from rich.text import Text
 from .config import get_api_config, get_server_config, create_env_template, validate_environment
 from .client import MemosClient
 from .models import CreateMemoRequest
+from .auth import create_auth_url
 
 app = typer.Typer(
     name="memos-mcp",
@@ -42,6 +43,23 @@ def serve(
         console.print(f"🚀 Starting Memos MCP Server on {host}:{port}", style="green bold")
         console.print(f"📝 Log level: {log_level}", style="blue")
         
+        # Display authentication info
+        try:
+            import os
+            auth_enabled = os.getenv("ENABLE_TOKEN_AUTH", "true").lower() in ("true", "1", "yes")
+            
+            if auth_enabled:
+                api_config = get_api_config()
+                base_url = f"http://{host}:{port}/mcp"
+                auth_url = create_auth_url(base_url, api_config.access_token, auth_enabled)
+                console.print(f"🔐 Authentication: Enabled", style="cyan")
+                console.print(f"🔗 Authenticated URL: {auth_url}", style="cyan")
+            else:
+                console.print(f"🔓 Authentication: Disabled", style="yellow")
+                console.print(f"🔗 Server URL: http://{host}:{port}/mcp", style="yellow")
+        except Exception as e:
+            console.print(f"⚠️  Could not determine auth status: {e}", style="yellow")
+        
         if reload:
             console.print("🔄 Auto-reload enabled", style="yellow")
         
@@ -58,11 +76,13 @@ def serve(
                 reload=reload
             )
         else:
-            # For production, use FastMCP's built-in server
-            app.run(
-                transport="http",
+            # For production, we need to use uvicorn with our authenticated app
+            # because FastMCP's built-in server doesn't support custom middleware
+            uvicorn.run(
+                "memos_mcp.server:http_app",
                 host=host,
-                port=port
+                port=port,
+                log_level=log_level.lower()
             )
         
     except Exception as e:
