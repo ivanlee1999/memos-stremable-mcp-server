@@ -45,13 +45,25 @@ def serve(
         if reload:
             console.print("🔄 Auto-reload enabled", style="yellow")
         
-        uvicorn.run(
-            "memos_mcp.server:app",
-            host=host,
-            port=port,
-            log_level=log_level.lower(),
-            reload=reload
-        )
+        # Import and run the FastMCP server directly
+        from .server import app
+        
+        if reload:
+            # For development with reload, we can use uvicorn
+            uvicorn.run(
+                "memos_mcp.server:http_app",
+                host=host,
+                port=port,
+                log_level=log_level.lower(),
+                reload=reload
+            )
+        else:
+            # For production, use FastMCP's built-in server
+            app.run(
+                transport="http",
+                host=host,
+                port=port
+            )
         
     except Exception as e:
         console.print(f"❌ Failed to start server: {e}", style="red bold")
@@ -128,8 +140,7 @@ def create(
             
             request = CreateMemoRequest(
                 content=content,
-                tags=tag_list,
-                source="cli"
+                tags=tag_list
             )
             
             console.print("📝 Creating memo...", style="blue")
@@ -144,11 +155,11 @@ def create(
                 table.add_column("Field", style="cyan")
                 table.add_column("Value", style="green")
                 
-                table.add_row("Content", memo.text)
+                table.add_row("Content", memo.get_text())
                 table.add_row("Tags", ", ".join(memo.tags) if memo.tags else "None")
-                table.add_row("Source", memo.source or "Unknown")
-                if memo.created_at:
-                    table.add_row("Created", memo.created_at.strftime("%Y-%m-%d %H:%M:%S"))
+                table.add_row("Visibility", memo.visibility or "PRIVATE")
+                if memo.get_created_at():
+                    table.add_row("Created", memo.get_created_at().strftime("%Y-%m-%d %H:%M:%S"))
                 
                 console.print(table)
                 return True
@@ -189,9 +200,9 @@ def list(
                 table.add_column("Created", style="green")
                 
                 for memo in memos:
-                    content = memo.text[:47] + "..." if len(memo.text) > 50 else memo.text
+                    content = memo.get_text()[:47] + "..." if len(memo.get_text()) > 50 else memo.get_text()
                     tags = ", ".join(memo.tags) if memo.tags else "-"
-                    created = memo.created_at.strftime("%m-%d %H:%M") if memo.created_at else "-"
+                    created = memo.get_created_at().strftime("%m-%d %H:%M") if memo.get_created_at() else "-"
                     
                     table.add_row(
                         memo.id or "-",

@@ -366,10 +366,7 @@ async def test_connection() -> dict:
         }
 
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint for container orchestration."""
-    return {"status": "healthy", "service": "flomo-mcp"}
+# Health check removed - not supported in FastMCP
 
 
 @app.tool()
@@ -406,40 +403,16 @@ async def get_server_info() -> dict:
         }
 
 
-# Startup and shutdown events
-@app.on_event("startup")
-async def startup_event():
-    """Initialize the server on startup."""
-    logger.info("Starting Memos MCP Server...")
-    try:
-        validate_environment()
-        logger.info("Environment validation passed")
-        
-        # Test connection
-        async with get_memos_client() as client:
-            is_connected = await client.test_connection()
-            if is_connected:
-                logger.info("Successfully connected to Memos API")
-            else:
-                logger.warning("Failed to connect to Memos API during startup")
-                
-    except Exception as e:
-        logger.error(f"Startup error: {e}")
-        raise
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on server shutdown."""
-    logger.info("Shutting down Memos MCP Server...")
-    await cleanup_client()
-    logger.info("Cleanup completed")
+# Startup and shutdown events removed - not supported in FastMCP
 
 
 # Export the app for running
 def create_app():
-    """Create and return the FastMCP app."""
-    return app
+    """Create and return the FastMCP ASGI app."""
+    return app.http_app()
+
+# Export for uvicorn
+http_app = create_app()
 
 
 if __name__ == "__main__":
@@ -448,12 +421,11 @@ if __name__ == "__main__":
     
     try:
         server_config = get_server_config()
-        uvicorn.run(
-            "flomo_mcp.server:app",
+        # Use FastMCP's built-in server instead of uvicorn directly
+        app.run(
+            transport="http",
             host=server_config.host,
-            port=server_config.port,
-            log_level=server_config.log_level.lower(),
-            reload=False
+            port=server_config.port
         )
     except Exception as e:
         logger.error(f"Failed to start server: {e}")

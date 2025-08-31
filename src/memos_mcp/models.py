@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class Memo(BaseModel):
@@ -27,26 +27,24 @@ class Memo(BaseModel):
     reactions: List[dict] = Field(default_factory=list, description="Memo reactions")
     property: Optional[dict] = Field(None, description="Additional properties")
     
-    @property
-    def text(self) -> str:
-        """Alias for content to maintain compatibility."""
+    def get_text(self) -> str:
+        """Get text content (alias for content)."""
         return self.content
     
-    @property
-    def created_at(self) -> Optional[datetime]:
-        """Convert timestamp to datetime."""
+    def get_created_at(self) -> Optional[datetime]:
+        """Convert created timestamp to datetime."""
         if self.created_ts:
             return datetime.fromtimestamp(self.created_ts)
         return None
     
-    @property
-    def updated_at(self) -> Optional[datetime]:
-        """Convert timestamp to datetime."""
+    def get_updated_at(self) -> Optional[datetime]:
+        """Convert updated timestamp to datetime."""
         if self.updated_ts:
             return datetime.fromtimestamp(self.updated_ts)
         return None
     
-    @validator("tags", pre=True)
+    @field_validator("tags", mode="before")
+    @classmethod
     def parse_tags(cls, v):
         """Parse tags from various input formats."""
         if isinstance(v, str):
@@ -56,7 +54,8 @@ class Memo(BaseModel):
             return [str(tag).strip().lstrip('#') for tag in v if str(tag).strip()]
         return []
 
-    @validator("text")
+    @field_validator("content")
+    @classmethod
     def validate_text(cls, v):
         """Ensure text is not empty."""
         if not v or not v.strip():
@@ -72,7 +71,8 @@ class CreateMemoRequest(BaseModel):
     tags: Optional[List[str]] = Field(default_factory=list, description="Optional tags for the memo")
     pinned: bool = Field(False, description="Whether to pin the memo")
     
-    @validator("content")
+    @field_validator("content")
+    @classmethod
     def validate_content(cls, v):
         """Ensure content is not empty."""
         if not v or not v.strip():
@@ -111,7 +111,8 @@ class SearchQuery(BaseModel):
     date_from: Optional[datetime] = Field(None, description="Filter memos created after this date")
     date_to: Optional[datetime] = Field(None, description="Filter memos created before this date")
     
-    @validator("query")
+    @field_validator("query")
+    @classmethod
     def validate_query(cls, v):
         """Ensure query is not empty."""
         if not v or not v.strip():
@@ -137,14 +138,16 @@ class ApiConfig(BaseModel):
     timeout: int = Field(30, description="Request timeout in seconds", ge=1, le=300)
     max_retries: int = Field(3, description="Maximum number of retry attempts", ge=0, le=10)
     
-    @validator("access_token")
+    @field_validator("access_token")
+    @classmethod
     def validate_token(cls, v):
         """Ensure access token is provided."""
         if not v or not v.strip():
             raise ValueError("Access token is required")
         return v.strip()
     
-    @validator("base_url")
+    @field_validator("base_url")
+    @classmethod
     def validate_base_url(cls, v):
         """Ensure base URL is provided and properly formatted."""
         if not v or not v.strip():
@@ -161,7 +164,8 @@ class ServerConfig(BaseModel):
     cors_origins: List[str] = Field(default_factory=list, description="CORS allowed origins")
     api_rate_limit: int = Field(100, description="API rate limit per minute", ge=1)
     
-    @validator("log_level")
+    @field_validator("log_level")
+    @classmethod
     def validate_log_level(cls, v):
         """Ensure valid log level."""
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
