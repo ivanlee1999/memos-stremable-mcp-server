@@ -52,8 +52,9 @@ Thumbs.db
 .gitignore
 
 # Documentation
-*.md
 docs/
+# Keep README.md as it's needed for package metadata
+# *.md
 
 # Tests
 tests/
