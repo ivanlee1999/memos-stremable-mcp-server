@@ -149,3 +149,4 @@ logs/
 # Application specific
 .env.local
 .env.production
+uv.lock
